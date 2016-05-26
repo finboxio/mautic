@@ -77,7 +77,7 @@ class AmazonTransport extends \Swift_SmtpTransport implements InterfaceCallbackT
         //     }
         // }
 
-        return array()
+        return array();
         //$rows;
     }
 }
