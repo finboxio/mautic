@@ -47,11 +47,11 @@ class AmazonTransport extends \Swift_SmtpTransport implements InterfaceCallbackT
      */
     public function handleCallbackResponse(Request $request, MauticFactory $factory)
     {
-        $msg_type1 = $request->headers->get('X-AMZ-SNS-MESSAGE-TYPE')
-        $msg_type2 = $request->headers->get('x-amz-sns-message-type')
+        $msg_type1 = $request->headers->get('X-AMZ-SNS-MESSAGE-TYPE');
+        $msg_type2 = $request->headers->get('x-amz-sns-message-type');
 
-        $logger = $this->factory->getLogger()
-        $logger->error("Received message type $msg_type1 or $msg_type2")
+        $logger = $this->factory->getLogger();
+        $logger->error("Received message type $msg_type1 or $msg_type2");
 
         // if (is_array($mandrillEvents)) {
         //     foreach ($mandrillEvents as $event) {
