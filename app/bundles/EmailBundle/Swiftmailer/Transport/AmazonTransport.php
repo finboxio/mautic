@@ -50,7 +50,7 @@ class AmazonTransport extends \Swift_SmtpTransport implements InterfaceCallbackT
         $msg_type1 = $request->headers->get('X-AMZ-SNS-MESSAGE-TYPE');
         $msg_type2 = $request->headers->get('x-amz-sns-message-type');
 
-        $logger = factory->getLogger();
+        $logger = $factory->getLogger();
         $logger->error("Received message type $msg_type1 or $msg_type2");
 
         // if (is_array($mandrillEvents)) {
