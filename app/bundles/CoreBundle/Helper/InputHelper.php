@@ -334,37 +334,37 @@ class InputHelper
                 $val = self::html($val);
             }
         } else {
-            // Special handling for doctype
-            $doctypeFound = preg_match("/(<!DOCTYPE(.*?)>)/is", $value, $doctype);
+            // // Special handling for doctype
+            // $doctypeFound = preg_match("/(<!DOCTYPE(.*?)>)/is", $value, $doctype);
 
-            // Special handling for CDATA tags
-            $value = str_replace(array('<![CDATA[', ']]>'), array('<mcdata>', '</mcdata>'), $value, $cdataCount);
+            // // Special handling for CDATA tags
+            // $value = str_replace(array('<![CDATA[', ']]>'), array('<mcdata>', '</mcdata>'), $value, $cdataCount);
 
-            // Special handling for conditional blocks
-            $value = preg_replace("/<!--\[if(.*?)\]>(.*?)<!\[endif\]-->/is", '<mcondition><mif>$1</mif>$2</mcondition>', $value, -1, $conditionsFound);
+            // // Special handling for conditional blocks
+            // $value = preg_replace("/<!--\[if(.*?)\]>(.*?)<!\[endif\]-->/is", '<mcondition><mif>$1</mif>$2</mcondition>', $value, -1, $conditionsFound);
 
-            // Special handling for HTML comments
-            $value = str_replace(array('<!--', '-->'), array('<mcomment>', '</mcomment>'), $value, $commentCount);
+            // // Special handling for HTML comments
+            // $value = str_replace(array('<!--', '-->'), array('<mcomment>', '</mcomment>'), $value, $commentCount);
 
-            $value = self::getFilter(true)->clean($value, 'html');
+            // $value = self::getFilter(true)->clean($value, 'html');
 
-            // Was a doctype found?
-            if ($doctypeFound) {
-                $value = "$doctype[0]\n$value";
-            }
+            // // Was a doctype found?
+            // if ($doctypeFound) {
+            //     $value = "$doctype[0]\n$value";
+            // }
 
-            if ($cdataCount) {
-                $value = str_replace(array('<mcdata>', '</mcdata>'), array('<![CDATA[', ']]>'), $value);
-            }
+            // if ($cdataCount) {
+            //     $value = str_replace(array('<mcdata>', '</mcdata>'), array('<![CDATA[', ']]>'), $value);
+            // }
 
-            if ($conditionsFound) {
-                // Special handling for conditional blocks
-                $value = preg_replace("/<mcondition><mif>(.*?)<\/mif>(.*?)<\/mcondition>/is", '<!--[if$1]>$2<![endif]-->', $value);
-            }
+            // if ($conditionsFound) {
+            //     // Special handling for conditional blocks
+            //     $value = preg_replace("/<mcondition><mif>(.*?)<\/mif>(.*?)<\/mcondition>/is", '<!--[if$1]>$2<![endif]-->', $value);
+            // }
 
-            if ($commentCount) {
-                $value = str_replace(array('<mcomment>', '</mcomment>'), array('<!--', '-->'), $value   );
-            }
+            // if ($commentCount) {
+            //     $value = str_replace(array('<mcomment>', '</mcomment>'), array('<!--', '-->'), $value   );
+            // }
         }
 
         return $value;
