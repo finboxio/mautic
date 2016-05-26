@@ -353,7 +353,7 @@ class PublicController extends CommonFormController
         ignore_user_abort(true);
 
         // Check to see if transport matches currently used transport
-        $currentTransport = $this->factory->getMailer()->getTransport();
+        $currentTransport = $this->factory->getTransport();
 
         if ($currentTransport instanceof InterfaceCallbackTransport && $currentTransport->getCallbackPath() == $transport) {
             $response = $currentTransport->handleCallbackResponse($this->request, $this->factory);

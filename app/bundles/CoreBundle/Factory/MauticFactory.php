@@ -618,6 +618,16 @@ class MauticFactory
     }
 
     /**
+     * Returns the default Transport
+     *
+     * @return \Swift_Transport
+     */
+    public function getRealTransport()
+    {
+        return $this->container->get('swiftmailer.mailer.default.transport');
+    }
+
+    /**
      * Guess the IP address from current session.
      *
      * @return string
