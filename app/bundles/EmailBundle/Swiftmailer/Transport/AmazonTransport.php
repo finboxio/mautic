@@ -12,6 +12,9 @@ namespace Mautic\EmailBundle\Swiftmailer\Transport;
 use Mautic\CoreBundle\Factory\MauticFactory;
 use Mautic\EmailBundle\Helper\MailHelper;
 use Symfony\Component\HttpFoundation\Request;
+use Aws\Sns\MessageValidator\Message;
+use Aws\Sns\MessageValidator\MessageValidator;
+use Guzzle\Http\Client;
 
 /**
  * Class AmazonTransport
@@ -47,11 +50,29 @@ class AmazonTransport extends \Swift_SmtpTransport implements InterfaceCallbackT
      */
     public function handleCallbackResponse(Request $request, MauticFactory $factory)
     {
-        $msg_type1 = $request->headers->get('X-AMZ-SNS-MESSAGE-TYPE');
-        $msg_type2 = $request->headers->get('x-amz-sns-message-type');
+        // Make sure the request is POST
+        // if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        //     return;
+        // }
 
-        $logger = $factory->getLogger();
-        $logger->error("Received message type $msg_type1 or $msg_type2");
+        // try {
+            // Create a message from the post data and validate its signature
+            $message = Message::fromRawPostData();
+            $validator = new MessageValidator();
+            $validator->validate($message);
+        // } catch (Exception $e) {
+        //     // Pretend we're not here if the message is invalid
+        //     return
+        // }
+
+        if ($message->get('Type') === 'SubscriptionConfirmation') {
+            // Send a request to the SubscribeURL to complete subscription
+            (new Client)->get($message->get('SubscribeURL'))->send();
+        } elseif ($message->get('Type') === 'Notification') {
+            // Do something with the notification
+            // save_message_to_database($message);
+            return array();
+        }
 
         // if (is_array($mandrillEvents)) {
         //     foreach ($mandrillEvents as $event) {
@@ -77,7 +98,6 @@ class AmazonTransport extends \Swift_SmtpTransport implements InterfaceCallbackT
         //     }
         // }
 
-        return array();
         //$rows;
     }
 }
