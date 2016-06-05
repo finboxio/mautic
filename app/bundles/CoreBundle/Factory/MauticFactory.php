@@ -624,7 +624,11 @@ class MauticFactory
      */
     public function getTransport()
     {
-        return $this->container->get('swiftmailer.mailer.default.transport');
+        try {
+            return $this->container->get('swiftmailer.transport.real');
+        } catch (\Exception $e) {
+            return $this->container->get('swiftmailer.mailer.default.transport');
+        }
     }
 
     /**
