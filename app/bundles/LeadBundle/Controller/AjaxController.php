@@ -336,6 +336,8 @@ class AjaxController extends CommonAjaxController
 
             if ($dnc) {
                 $lead = $dnc->getLead();
+            } else {
+                $lead = null;
             }
 
             if ($lead) {

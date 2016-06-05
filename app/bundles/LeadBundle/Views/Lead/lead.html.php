@@ -408,6 +408,9 @@ $view['slots']->set(
                             <?php if ($doNotContact['unsubscribed']): ?>
                             <span class="label label-danger" data-toggle="tooltip" title="<?php echo $doNotContact['comments']; ?>">
                                 <?php echo $view['translator']->trans('mautic.lead.do.not.contact'); ?>
+                                <span data-toggle="tooltip" data-placement="bottom" title="<?php echo $view['translator']->trans('mautic.lead.remove_dnc_status'); ?>">
+                                    <i class="fa fa-times has-click-event" onclick="Mautic.removeBounceStatus(this, <?php echo $doNotContact['id']; ?>);"></i>
+                                </span>
                             </span>
 
                             <?php elseif ($doNotContact['manual']): ?>
