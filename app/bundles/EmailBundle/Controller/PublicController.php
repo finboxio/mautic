@@ -361,11 +361,11 @@ class PublicController extends CommonFormController
             if (is_array($response)) {
                 /** @var \Mautic\EmailBundle\Model\EmailModel $model */
                 $model = $this->factory->getModel('email');
-
                 $model->processMailerCallback($response);
+                return new Response('success');
+            } else {
+                $this->notFound();
             }
-
-            return new Response('success');
         }
 
         $this->notFound();

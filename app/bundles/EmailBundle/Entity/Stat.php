@@ -100,6 +100,11 @@ class Stat
     private $sourceId;
 
     /**
+     * @var string
+     */
+    private $transportId;
+
+    /**
      * @var array
      */
     private $tokens = array();
@@ -144,6 +149,7 @@ class Stat
             ->addIndex(array('is_failed'), 'stat_email_failed_search')
             ->addIndex(array('is_read'), 'stat_email_read_search')
             ->addIndex(array('tracking_hash'), 'stat_email_hash_search')
+            ->addIndex(array('transport_id'), 'stat_email_transport_id_search')
             ->addIndex(array('source', 'source_id'), 'stat_email_source_search');
 
         $builder->addId();
@@ -202,6 +208,11 @@ class Stat
 
         $builder->createField('sourceId', 'integer')
             ->columnName('source_id')
+            ->nullable()
+            ->build();
+
+        $builder->createField('transportId', 'string')
+            ->columnName('transport_id')
             ->nullable()
             ->build();
 
@@ -510,6 +521,22 @@ class Stat
     public function setSourceId ($sourceId)
     {
         $this->sourceId = (int)$sourceId;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getTransportId ()
+    {
+        return $this->transportId;
+    }
+
+    /**
+     * @param mixed $transportId
+     */
+    public function setTransportId ($transportId)
+    {
+        $this->transportId = (string)$transportId;
     }
 
     /**

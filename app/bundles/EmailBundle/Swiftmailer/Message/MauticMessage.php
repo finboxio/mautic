@@ -37,6 +37,16 @@ class MauticMessage extends \Swift_Message
         return new self($subject, $body, $contentType, $charset);
     }
 
+    public function setMailer ($mailer)
+    {
+        $this->mailer = $mailer;
+    }
+
+    public function getMailer ()
+    {
+        return $this->mailer;
+    }
+
     /**
      * @param       $email
      * @param array $metadata

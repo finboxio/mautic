@@ -218,7 +218,8 @@ return array(
                 ),
                 'methodCalls'  => array(
                     'setUsername' => array('%mautic.mailer_user%'),
-                    'setPassword' => array('%mautic.mailer_password%')
+                    'setPassword' => array('%mautic.mailer_password%'),
+                    'setMauticFactory' => array('mautic.factory')
                 )
             ),
             'mautic.transport.mandrill'          => array(

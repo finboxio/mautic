@@ -45,6 +45,26 @@ class StatRepository extends CommonRepository
     }
 
     /**
+     * @param $transportId
+     *
+     * @return mixed
+     * @throws \Doctrine\ORM\NoResultException
+     * @throws \Doctrine\ORM\NonUniqueResultException
+     */
+    public function getTransportIdStatus($transportId)
+    {
+        $q = $this->createQueryBuilder('s');
+        $q->select('s')
+            ->leftJoin('s.lead', 'l')
+            ->leftJoin('s.email', 'e')
+            ->where('s.transportId = :transportId')
+            ->setParameter('transportId', $transportId);
+        $result = $q->getQuery()->getResult();
+
+        return (!empty($result)) ? $result[0] : null;
+    }
+
+    /**
      * @param      $emailId
      * @param null $listId
      *

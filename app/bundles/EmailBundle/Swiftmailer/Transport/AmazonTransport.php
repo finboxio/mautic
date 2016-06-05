@@ -11,6 +11,7 @@ namespace Mautic\EmailBundle\Swiftmailer\Transport;
 
 use Mautic\CoreBundle\Factory\MauticFactory;
 use Mautic\EmailBundle\Helper\MailHelper;
+use Mautic\EmailBundle\Entity\StatRepository;
 use Symfony\Component\HttpFoundation\Request;
 use Aws\Sns\MessageValidator\Message;
 use Aws\Sns\MessageValidator\MessageValidator;
@@ -21,6 +22,8 @@ use Guzzle\Http\Client;
  */
 class AmazonTransport extends \Swift_SmtpTransport implements InterfaceCallbackTransport
 {
+    private $factory;
+
     /**
      * {@inheritdoc}
      */
@@ -28,6 +31,14 @@ class AmazonTransport extends \Swift_SmtpTransport implements InterfaceCallbackT
     {
         parent::__construct($host, 587, 'tls');
         $this->setAuthMode('login');
+    }
+
+    /**
+     * @param MauticFactory $factory
+     */
+    public function setMauticFactory(MauticFactory $factory)
+    {
+        $this->factory = $factory;
     }
 
     /**
@@ -41,6 +52,20 @@ class AmazonTransport extends \Swift_SmtpTransport implements InterfaceCallbackT
     }
 
     /**
+     * @param \Swift_Mime_Message $message
+     * @param null                $failedRecipients
+     *
+     * @return int
+     * @throws \Exception
+     */
+    public function send(\Swift_Mime_Message $message, &$failedRecipients = null)
+    {
+        $listener = new AmazonSmtpResponseListener($this->factory, $message);
+        $this->registerPlugin($listener);
+        return parent::send($message, $failedRecipients);
+    }
+
+    /**
      * Handle response
      *
      * @param Request       $request
@@ -51,54 +76,129 @@ class AmazonTransport extends \Swift_SmtpTransport implements InterfaceCallbackT
     public function handleCallbackResponse(Request $request, MauticFactory $factory)
     {
         // Make sure the request is POST
-        // if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        //     return;
-        // }
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            return;
+        }
 
-        // try {
+        try {
             // Create a message from the post data and validate its signature
             $message = Message::fromRawPostData();
             $validator = new MessageValidator();
             $validator->validate($message);
-        // } catch (Exception $e) {
-        //     // Pretend we're not here if the message is invalid
-        //     return
-        // }
-
-        if ($message->get('Type') === 'SubscriptionConfirmation') {
-            // Send a request to the SubscribeURL to complete subscription
-            (new Client)->get($message->get('SubscribeURL'))->send();
-        } elseif ($message->get('Type') === 'Notification') {
-            // Do something with the notification
-            // save_message_to_database($message);
-            return array();
+        } catch (Exception $e) {
+            $logger = $factory->getLogger();
+            $logger->error("Caught exception while validating AWS SNS message: $e");
+            return;
         }
 
-        // if (is_array($mandrillEvents)) {
-        //     foreach ($mandrillEvents as $event) {
-        //         $isBounce      = in_array($event['event'], array('hard_bounce', 'soft_bounce', 'reject', 'spam', 'invalid'));
-        //         $isUnsubscribe = ('unsub' === $event['event']);
-        //         if ($isBounce || $isUnsubscribe) {
-        //             $type = ($isBounce) ? 'bounced' : 'unsubscribed';
+        if ($message->get('Type') === 'SubscriptionConfirmation') {
+            $url = $message->get('SubscribeURL');
+            (new Client)->get($message->get('SubscribeURL'))->send();
+            return array();
+        } elseif ($message->get('Type') === 'Notification') {
+            $rows = array(
+                'bounced' => array(
+                    'hashIds' => array(),
+                    'emails'  => array()
+                ),
+                'unsubscribed' => array(
+                    'hashIds' => array(),
+                    'emails'  => array()
+                )
+            );
+            $json = json_decode($message->get('Message'));
+            $type = $json->notificationType;
+            if ($type === "Bounce") {
+                $bounceType = $json->bounce->bounceType;
+                if ($bounceType !== "Transient") {
+                    $sentId = $json->mail->messageId;
+                    $reason = $type;
+                    $statRepository = $factory->getEntityManager()->getRepository('MauticEmailBundle:Stat');
+                    $stat = $statRepository->getTransportIdStatus($sentId);
+                    if ($stat) {
+                        $hash = $stat->getTrackingHash();
+                        $factory->getLogger()->debug("Adding SES bounce for email hash $hash");
+                        $rows['bounced']['hashIds'][$hash] = $reason;
+                    } else {
+                        foreach ($json->bounce->bouncedRecipients as $address) {
+                            $email = $address->emailAddress;
+                            $factory->getLogger()->debug("Setting SES bounce for email address $email");
+                            $rows['bounced']['emails'][$email] = $reason;
+                        }
+                    }
+                }
+            } else if ($type === "Complaint") {
+                $sentId = $json->mail->messageId;
+                $reason = $type;
+                $statRepository = $factory->getEntityManager()->getRepository('MauticEmailBundle:Stat');
+                $stat = $statRepository->getTransportIdStatus($sentId);
+                if ($stat) {
+                    $hash = $stat->getTrackingHash();
+                    $factory->getLogger()->debug("Adding SES complaint for email hash $hash");
+                    $rows['unsubscribed']['hashIds'][$hash] = $reason;
+                } else {
+                    foreach ($json->complaint->complainedRecipients as $address) {
+                        $email = $address->emailAddress;
+                        $factory->getLogger()->debug("Setting SES complaint for email address $email");
+                        $rows['unsubscribed']['emails'][$email] = $reason;
+                    }
+                }
+            }
 
-        //             if (!empty($event['msg']['diag'])) {
-        //                 $reason = $event['msg']['diag'];
-        //             } elseif (!empty($event['msg']['bounce_description'])) {
-        //                 $reason = $event['msg']['bounce_description'];
-        //             } else {
-        //                 $reason = ($isUnsubscribe) ? 'unsubscribed' : $event['event'];
-        //             }
+            return $rows;
+        }
+    }
+}
 
-        //             if (isset($event['msg']['metadata']['hashId'])) {
-        //                 $rows[$type]['hashIds'][$event['msg']['metadata']['hashId']] = $reason;
-        //             } else {
-        //                 $rows[$type]['emails'][$event['msg']['email']] = $reason;
-        //             }
-        //         }
-        //     }
-        // }
+class AmazonSmtpResponseListener implements \Swift_Events_ResponseListener {
+    private $factory;
+    private $message;
+    private $finished;
 
-        //$rows;
+    public function __construct( MauticFactory $factory, \Swift_Mime_Message $message ) {
+        $this->factory = $factory;
+        $this->message = $message;
+        $this->finished = false;
+    }
+
+    /**
+     * Invoked immediately following a response coming back.
+     *
+     * @param Swift_Events_ResponseEvent $evt
+     */
+    public function responseReceived(\Swift_Events_ResponseEvent $event) {
+        if ($this->finished) return;
+        $res = explode(" ", $event->getResponse());
+        if ($res[0] === "221") {
+            $this->finished = true;
+        }
+        if ($res[0] === "250" && $res[1] === "Ok" && $res[2]) {
+            $id = trim($res[2]);
+            $hash = $this->message->getHeaders()->get('X-mautic-hash');
+            if (method_exists($this->message, 'getMailer')) {
+                // If the message has a MailHelper, we set the transportId
+                // directly because no stat has been saved
+                $this->factory->getLogger()->debug("Setting mailer transportId to $id");
+                $mailer = $this->message->getMailer();
+                $mailer->setTransportId($id);
+            } else if ($hash) {
+                // If the message has a hash, we look up the stat entity for
+                // that hash and update its transportId
+                $this->factory->getLogger()->debug("Updating transportId for hash $hash");
+                $statRepository = $this->factory->getEntityManager()->getRepository('MauticEmailBundle:Stat');
+                $stat = $statRepository->getEmailStatus($this->message->leadIdHash);
+                if ($stat) {
+                    $this->factory->getLogger()->debug("Setting stat transportId to $id");
+                    $stat->setTransportId($id);
+                    $statRepository->saveEntity($stat);
+                } else {
+                    $this->factory->getLogger()->warning("No stat found for message $hash ($id)");
+                }
+            } else {
+                $this->factory->getLogger()->warning("No hash found for message ($id)");
+            }
+            $this->finished = true;
+        }
     }
 }
 

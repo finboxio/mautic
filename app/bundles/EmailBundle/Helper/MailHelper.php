@@ -104,6 +104,11 @@ class MailHelper
     protected $source = array();
 
     /**
+     * @var string
+     */
+    protected $transportId = null;
+
+    /**
      * @var Email|null
      */
     protected $email = null;
@@ -669,12 +674,17 @@ class MailHelper
     public function getMessageInstance()
     {
         try {
-            $message = ($this->tokenizationSupported) ? MauticMessage::newInstance() : \Swift_Message::newInstance();
+            $message = ($this->tokenizationSupported || $this->factory->getParameter('mailer_spool_type') == 'memory')
+                ? MauticMessage::newInstance()
+                : \Swift_Message::newInstance();
+
+            if (method_exists($message, 'setMailer')) {
+                $message->setMailer($this);
+            }
 
             return $message;
         } catch (\Exception $e) {
             $this->logError($e);
-
             return false;
         }
     }
@@ -1160,6 +1170,7 @@ class MailHelper
 
         // Add the trackingID to the $message object in order to update the stats if the email failed to send
         $this->message->leadIdHash = $idHash;
+        $this->addCustomHeader('X-mautic-hash', $idHash);
     }
 
     /**
@@ -1205,6 +1216,22 @@ class MailHelper
     public function setSource($source)
     {
         $this->source = $source;
+    }
+
+    /**
+     * @return string
+     */
+    public function getTransportId()
+    {
+        return $this->transportId;
+    }
+
+    /**
+     * @param string $id
+     */
+    public function setTransportId($id)
+    {
+        $this->transportId = $id;
     }
 
     /**
@@ -1634,6 +1661,7 @@ class MailHelper
         $stat = new Stat();
         $stat->setDateSent(new \DateTime());
         $stat->setEmail($this->email);
+        $stat->setTransportId($this->transportId);
 
         // Note if a lead
         if (null !== $this->lead) {
